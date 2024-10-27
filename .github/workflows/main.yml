@@ -51,11 +51,6 @@ jobs:
         run: |
           kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
 
-      - name: Wait for Calico CNI to be ready
-        run: |
-          kubectl wait --for=condition=available --timeout=300s deployment/calico-kube-controllers -n calico-system
-          kubectl wait --for=condition=available --timeout=300s deployment/calico-typha -n calico-system
-
       - name: Apply Calico CNI custom resource
         run: |
           kubectl apply -f - <<EOF
