@@ -23,14 +23,14 @@ kubectl create -f calico-cni.yaml
 
 eksctl create nodegroup --cluster astro-calico-cluster --node-type t2.micro --max-pods-per-node 100
 
-# Results
+## Results
 
-## Calico components (calico-kube-controllers, calico-node, calico-typha, etc.) are running in the calico-system namespace, which proves that Calico has been successfully installed. Additionally, the tigera-operator pod is running in the tigera-operator namespace, managing the Calico installation
+Calico components (calico-kube-controllers, calico-node, calico-typha, etc.) are running in the calico-system namespace, which proves that Calico has been successfully installed. Additionally, the tigera-operator pod is running in the tigera-operator namespace, managing the Calico installation
 
 ![meta data.](image-1.png)
 
-## The message in the image confirms that the aws-node daemonset has been removed. This is proves, that AWS VPC CNI was replaced with Calico successfully
+The message in the image confirms that the aws-node daemonset has been removed. This is proves, that AWS VPC CNI was replaced with Calico successfully
 
 ![ meta data.](image.png)
 
-## P.S. even though i added the ci/cd pipline, that's not a necessity here imo. Since it takes quite some time to boot-up EKS cluster and then there are additional steps to install calico as well, which only adds up more time. That's why i executed the commands from my local environement
+P.S. even though i added the ci/cd pipline, that's not a necessity here imo. Since it takes quite some time to boot-up EKS cluster and then there are additional steps to install calico as well, which only adds up more time. That's why i executed the commands from my local environement. (eks cluster, after completion, have been deleted)
