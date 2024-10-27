@@ -1,0 +1,76 @@
+name: Deploy to EKS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-1
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Install eksctl
+        run: |
+          ARCH=amd64
+          PLATFORM=$(uname -s)_$ARCH
+          curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
+          tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
+          sudo mv /tmp/eksctl /usr/local/bin
+
+      - name: Create EKS cluster
+        run: |
+          eksctl create cluster \
+          --name astro-calico-cluster \
+          --version 1.31 \
+          --without-nodegroup \
+          --vpc-nat-mode Disable \
+          --region ap-southeast-1 \
+
+      - name: Delete default CNI
+        run: |
+          kubectl delete daemonset -n kube-system aws-node
+
+      - name: Install Calico CNI
+        run: |
+          kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
+
+      - name: Wait for Calico CNI to be ready
+        run: |
+          kubectl wait --for=condition=available --timeout=300s deployment/calico-kube-controllers -n calico-system
+          kubectl wait --for=condition=available --timeout=300s deployment/calico-typha -n calico-system
+
+      - name: Apply Calico CNI custom resource
+        run: |
+          kubectl apply -f - <<EOF
+          apiVersion: operator.tigera.io/v1
+          kind: Installation
+          metadata:
+            name: default
+          spec:
+            kubernetesProvider: EKS
+            cni:
+              type: Calico
+            calicoNetwork:
+              bgp: Disabled
+          EOF
+
+      - name: Add node group with higher pod density
+        run: |
+          eksctl create nodegroup --cluster astro-calico-cluster --node-type t2.micro --max-pods-per-node 100
